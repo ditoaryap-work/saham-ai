@@ -1,0 +1,7 @@
+venv/
+data/*.db
+logs/*.log
+__pycache__/
+.DS_Store
+config/settings.json
+data/llm_payload.json

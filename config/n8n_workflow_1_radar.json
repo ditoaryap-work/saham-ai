@@ -1,0 +1,273 @@
+{
+    "name": "Saham AI - Radar Harian",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "30 8 * * 1-5"
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule (Pagi)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "position": [
+                250,
+                300
+            ],
+            "typeVersion": 1,
+            "id": "1"
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "35 15 * * 1-5"
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule (Sore)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "position": [
+                250,
+                450
+            ],
+            "typeVersion": 1,
+            "id": "2"
+        },
+        {
+            "parameters": {
+                "command": "cd /Users/ditoaryap/Documents/Project/saham-ai && source venv/bin/activate && python3 scripts/08_run_all.py",
+                "executeOnce": true
+            },
+            "name": "Jalankan Python Engine",
+            "type": "n8n-nodes-base.executeCommand",
+            "position": [
+                480,
+                360
+            ],
+            "typeVersion": 1,
+            "id": "3"
+        },
+        {
+            "parameters": {
+                "filePath": "/Users/ditoaryap/Documents/Project/saham-ai/data/llm_payload.json"
+            },
+            "name": "Baca Payload JSON",
+            "type": "n8n-nodes-base.readBinaryFile",
+            "position": [
+                700,
+                360
+            ],
+            "typeVersion": 1,
+            "id": "4"
+        },
+        {
+            "parameters": {},
+            "name": "Ekstrak JSON",
+            "type": "n8n-nodes-base.extractFromFile",
+            "position": [
+                920,
+                360
+            ],
+            "typeVersion": 1,
+            "id": "5"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.status }}",
+                            "value2": "success"
+                        }
+                    ]
+                }
+            },
+            "name": "Cek Status Signal",
+            "type": "n8n-nodes-base.if",
+            "position": [
+                1140,
+                360
+            ],
+            "typeVersion": 1,
+            "id": "6"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://openrouter.ai/api/v1/chat/completions",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer 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"
+                        },
+                        {
+                            "name": "HTTP-Referer",
+                            "value": "http://localhost:5678"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "model",
+                            "value": "deepseek/deepseek-chat"
+                        },
+                        {
+                            "name": "messages",
+                            "value": "={{ [\n  {\n    \"role\": \"system\",\n    \"content\": $json.system_prompt\n  },\n  {\n    \"role\": \"user\",\n    \"content\": JSON.stringify($json.raw_signals)\n  }\n] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "OpenRouter (DeepSeek)",
+            "type": "n8n-nodes-base.httpRequest",
+            "position": [
+                1380,
+                340
+            ],
+            "typeVersion": 4.1,
+            "id": "7"
+        },
+        {
+            "parameters": {
+                "chatId": "8498817110",
+                "text": "={{ $json.choices[0].message.content }}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "name": "Kirim ke Telegram",
+            "type": "n8n-nodes-base.telegram",
+            "position": [
+                1600,
+                340
+            ],
+            "typeVersion": 1,
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            },
+            "id": "8"
+        },
+        {
+            "parameters": {
+                "chatId": "8498817110",
+                "text": "Pasar hari ini kurang mendukung. Tidak ada sinyal BUY valid (skor di atas 70) yang ditemukan oleh AI Engine."
+            },
+            "name": "Telegram (No Signal)",
+            "type": "n8n-nodes-base.telegram",
+            "position": [
+                1380,
+                540
+            ],
+            "typeVersion": 1,
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            },
+            "id": "9"
+        }
+    ],
+    "connections": {
+        "Schedule (Pagi)": {
+            "main": [
+                [
+                    {
+                        "node": "Jalankan Python Engine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Schedule (Sore)": {
+            "main": [
+                [
+                    {
+                        "node": "Jalankan Python Engine",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Jalankan Python Engine": {
+            "main": [
+                [
+                    {
+                        "node": "Baca Payload JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Baca Payload JSON": {
+            "main": [
+                [
+                    {
+                        "node": "Ekstrak JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ekstrak JSON": {
+            "main": [
+                [
+                    {
+                        "node": "Cek Status Signal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Cek Status Signal": {
+            "main": [
+                [
+                    {
+                        "node": "OpenRouter (DeepSeek)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Telegram (No Signal)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenRouter (DeepSeek)": {
+            "main": [
+                [
+                    {
+                        "node": "Kirim ke Telegram",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
