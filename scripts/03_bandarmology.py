@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'saham.db')
