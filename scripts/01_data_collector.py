@@ -101,8 +101,18 @@ def fetch_data(ticker_list, period="1y"):
     print("[*] Selesai mengumpulkan data.")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Data Collector')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print(f"=== SAHAM AI DATA COLLECTOR ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
     setup_database()
-    watchlist = get_watchlist()
+    
+    if args.ticker:
+        watchlist = [args.ticker.upper()]
+    else:
+        watchlist = get_watchlist()
+        
     fetch_data(watchlist)
     print("=== SELESAI ===")

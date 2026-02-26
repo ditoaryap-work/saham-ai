@@ -1,42 +1,48 @@
 import os
 import subprocess
 import sys
+import argparse
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
 
-# Urutan eksekusi sangat penting
-scripts_to_run = [
-    '01_data_collector.py',
-    '02_technical_analyst.py',
-    '03_bandarmology.py',
-    '04_fundamental_filter.py',
-    '05_sentiment_scraper.py',
-    '06_scoring_engine.py',
-    '07_llm_formatter.py'
-]
-
-def run_script(script_name):
+def run_script(script_name, args=None):
     script_path = os.path.join(SCRIPTS_DIR, script_name)
     print(f"\n{'='*60}")
     print(f"🚀 MENJALANKAN: {script_name}")
     print(f"{'='*60}")
     
-    # Eksekusi menggunakan python environment yang sedang aktif
-    result = subprocess.run([sys.executable, script_path])
+    cmd = [sys.executable, script_path]
+    if args:
+        cmd.extend(args)
+        
+    result = subprocess.run(cmd)
     
     if result.returncode != 0:
         print(f"\n[!] TERJADI KESALAHAN KRITIKAL: Eksekusi {script_name} gagal (Kode: {result.returncode}).")
-        print("[!] Proses dibatalkan untuk menghindari kerusakan data.")
         sys.exit(1)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Saham AI - Master Engine Runner')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik untuk dianalisa (opsional)')
+    args = parser.parse_args()
+
+    ticker_args = ['--ticker', args.ticker] if args.ticker else []
+
     print("\n" + "#"*60)
     print("🌟 SAHAM AI: MASTER ENGINE RUNNER 🌟".center(60))
+    if args.ticker:
+        print(f"🎯 ANALISA SPESIFIK: {args.ticker.upper()}".center(60))
     print("#"*60 + "\n")
     
-    for script in scripts_to_run:
-        run_script(script)
+    # Urutan eksekusi
+    run_script('01_data_collector.py', ticker_args)
+    run_script('02_technical_analyst.py', ticker_args)
+    run_script('03_bandarmology.py', ticker_args)
+    run_script('04_fundamental_filter.py', ticker_args)
+    run_script('05_sentiment_scraper.py', ticker_args)
+    run_script('06_scoring_engine.py', ticker_args)
+    run_script('07_llm_formatter.py', ticker_args)
         
     print("\n" + "#"*60)
     print("✅ SELURUH PROSES ANALISA BERHASIL DIJALANKAN!".center(60))

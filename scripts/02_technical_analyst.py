@@ -172,25 +172,49 @@ def save_analysis(result):
     conn.commit()
     conn.close()
 
+def analyze_ticker(ticker):
+    df = get_latest_data(ticker, days=120)
+    df_ta = analyze_technical(df)
+    if df_ta is not None:
+        sig = generate_signals(ticker, df_ta)
+        if sig:
+            save_analysis(sig)
+            print(f"  [+] {ticker} : Skor Teknikal {sig['tech_score']} ({sig['trend_status']})")
+        else:
+            print(f"  [-] {ticker} : Gagal generate signal.")
+    else:
+        print(f"  [-] {ticker} : Data tidak cukup untuk analisis.")
+
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Technical Analyst')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print("=== SAHAM AI TECHNICAL ANALYST ===")
     setup_analysis_table()
     
     conn = sqlite3.connect(DB_PATH)
-    tickers = pd.read_sql("SELECT DISTINCT ticker FROM ohlcv", conn)['ticker'].tolist()
+    if args.ticker:
+        # Hanya ambil ticker spesifik yang ada di ohlcv
+        query = f"SELECT DISTINCT ticker FROM ohlcv WHERE ticker = '{args.ticker.upper()}'"
+    else:
+        query = "SELECT DISTINCT ticker FROM ohlcv"
+    
+    tickers = pd.read_sql(query, conn)['ticker'].tolist()
     conn.close()
+    
+    if not tickers:
+        if args.ticker:
+            print(f"[*] Ticker '{args.ticker.upper()}' tidak ditemukan dalam database.")
+        else:
+            print("[*] Tidak ada ticker ditemukan dalam database.")
+        print("=== SELESAI ===")
+        sys.exit(0)
     
     print(f"[*] Menghitung indikator untuk {len(tickers)} saham...")
     
     for ticker in tickers:
-        df = get_latest_data(ticker, days=120)
-        df_ta = analyze_technical(df)
-        if df_ta is not None:
-            sig = generate_signals(ticker, df_ta)
-            if sig:
-                save_analysis(sig)
-                print(f"  [+] {ticker} : Skor Teknikal {sig['tech_score']} ({sig['trend_status']})")
-            else:
-                print(f"  [-] {ticker} : Gagal generate signal.")
-                
+        analyze_ticker(ticker)
+        
     print("=== SELESAI ===")

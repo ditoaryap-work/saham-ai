@@ -37,19 +37,27 @@ def align_tiering(row):
     else:
         return "Tier 2 (Mid-Cap)"
 
-def calculate_final_scores():
+def calculate_final_scores(ticker_filter=None):
     """Menggabungkan 4 layer penilaian."""
     conn = sqlite3.connect(DB_PATH)
     # Ambil data hari/tanggal bursa terbaru (misal Jumat sore)
-    query = """
-    SELECT ticker, date, tech_score, bandar_score, fundamental_score, news_sentiment_score, tier, close_price, market_cap, volume_spike_ratio
-    FROM analisa_harian 
-    WHERE date = (SELECT MAX(date) FROM analisa_harian)
-    """
+    if ticker_filter:
+        query = f"""
+        SELECT ticker, date, tech_score, bandar_score, fundamental_score, news_sentiment_score, tier, close_price, market_cap, volume_spike_ratio
+        FROM analisa_harian 
+        WHERE ticker = '{ticker_filter.upper()}'
+        AND date = (SELECT MAX(date) FROM analisa_harian WHERE ticker = '{ticker_filter.upper()}')
+        """
+    else:
+        query = """
+        SELECT ticker, date, tech_score, bandar_score, fundamental_score, news_sentiment_score, tier, close_price, market_cap, volume_spike_ratio
+        FROM analisa_harian 
+        WHERE date = (SELECT MAX(date) FROM analisa_harian)
+        """
     df = pd.read_sql(query, conn)
     
     if df.empty:
-        print("[!] Tidak ada data untuk dianalisa hari ini.")
+        print(f"[!] Tidak ada data untuk dianalisa {'untuk ' + ticker_filter if ticker_filter else 'hari ini'}.")
         conn.close()
         return
 
@@ -120,8 +128,13 @@ def calculate_final_scores():
     conn.close()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Scoring Engine')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print(f"=== SAHAM AI SCORING ENGINE ===")
     setup_final_score_columns()
-    print("[*] Menghitung skor akhir gabungan 4 layer dengan Multiple-Tier Weighting...")
-    calculate_final_scores()
+    print(f"[*] Menghitung skor akhir {'untuk ' + args.ticker.upper() if args.ticker else 'gabungan 4 layer'}...")
+    calculate_final_scores(args.ticker)
     print("=== SELESAI ===")

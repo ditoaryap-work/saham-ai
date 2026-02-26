@@ -100,23 +100,35 @@ def update_analysis(result):
     conn.close()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Fundamental Filter')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print("=== SAHAM AI FUNDAMENTAL FILTER ===")
     setup_fundamental_columns()
     
     conn = sqlite3.connect(DB_PATH)
-    query = "SELECT ticker FROM analisa_harian GROUP BY ticker"
+    if args.ticker:
+        query = f"SELECT ticker FROM analisa_harian WHERE ticker = '{args.ticker.upper()}' GROUP BY ticker"
+    else:
+        query = "SELECT ticker FROM analisa_harian GROUP BY ticker"
+        
     analyzed_tickers = pd.read_sql(query, conn)['ticker'].tolist()
     conn.close()
     
-    print(f"[*] Mengambil data fundamental (P/E, PBV, Cap) untuk {len(analyzed_tickers)} saham...")
-    
-    for ticker in analyzed_tickers:
-        print(f"  -> Menganalisa: {ticker}")
-        fund_data = analyze_fundamental(ticker)
-        if fund_data:
-            update_analysis(fund_data)
-            print(f"  [+] {ticker} : Skor Fundamental {fund_data['fundamental_score']} ({fund_data['fundamental_status']})")
-        # Delay 1 detik untuk menghindari Rate Limit (429) dari server Yahoo API public
-        time.sleep(1)
+    if not analyzed_tickers:
+        print("[*] Tidak ada ticker untuk dianalisa fundamental.")
+    else:
+        print(f"[*] Mengambil data fundamental (P/E, PBV, Cap) untuk {len(analyzed_tickers)} saham...")
+        
+        for ticker in analyzed_tickers:
+            print(f"  -> Menganalisa: {ticker}")
+            fund_data = analyze_fundamental(ticker)
+            if fund_data:
+                update_analysis(fund_data)
+                print(f"  [+] {ticker} : Skor Fundamental {fund_data['fundamental_score']} ({fund_data['fundamental_status']})")
+            # Delay 1 detik untuk menghindari Rate Limit (429) dari server Yahoo API public
+            time.sleep(1)
                 
     print("=== SELESAI ===")

@@ -86,24 +86,36 @@ def update_analysis(result):
     conn.close()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Sentiment Scraper')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print("=== SAHAM AI SENTIMENT SCRAPER ===")
     setup_sentiment_columns()
     
     conn = sqlite3.connect(DB_PATH)
-    query = "SELECT ticker FROM analisa_harian GROUP BY ticker"
+    if args.ticker:
+        query = f"SELECT ticker FROM analisa_harian WHERE ticker = '{args.ticker.upper()}' GROUP BY ticker"
+    else:
+        query = "SELECT ticker FROM analisa_harian GROUP BY ticker"
+        
     analyzed_tickers = pd.read_sql(query, conn)['ticker'].tolist()
     conn.close()
     
-    print(f"[*] Mengambil headline berita (RSS Google News) untuk {len(analyzed_tickers)} saham...")
-    
-    for ticker in analyzed_tickers:
-        print(f"  -> Scraping berita: {ticker}")
-        sent_data = analyze_sentiment(ticker)
-        if sent_data:
-            update_analysis(sent_data)
-            headlines = json.loads(sent_data['news_headlines'])
-            print(f"  [+] {ticker} : {len(headlines)} berita terkumpul. Skor Default: {sent_data['news_sentiment_score']}")
-            for h in headlines:
-                print(f"      - {h['title'][:80]}...")
+    if not analyzed_tickers:
+        print("[*] Tidak ada ticker untuk scraping berita.")
+    else:
+        print(f"[*] Mengambil headline berita (RSS Google News) untuk {len(analyzed_tickers)} saham...")
+        
+        for ticker in analyzed_tickers:
+            print(f"  -> Scraping berita: {ticker}")
+            sent_data = analyze_sentiment(ticker)
+            if sent_data:
+                update_analysis(sent_data)
+                headlines = json.loads(sent_data['news_headlines'])
+                print(f"  [+] {ticker} : {len(headlines)} berita terkumpul. Skor Default: {sent_data['news_sentiment_score']}")
+                for h in headlines:
+                    print(f"      - {h['title'][:80]}...")
                 
     print("=== SELESAI ===")

@@ -128,15 +128,27 @@ def update_analysis(result):
     conn.close()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Saham AI Bandarmology Analyst')
+    parser.add_argument('--ticker', type=str, help='Ticker saham spesifik (opsional)')
+    args = parser.parse_args()
+
     print("=== SAHAM AI BANDARMOLOGY ANALYST ===")
     setup_bandar_columns()
     
     conn = sqlite3.connect(DB_PATH)
-    # Kita hanya check saham yang masuk ke tabel analisa_harian hari ini/terbaru
-    query = "SELECT ticker, MAX(date) as max_date FROM analisa_harian GROUP BY ticker"
+    if args.ticker:
+        query = f"SELECT ticker, MAX(date) as max_date FROM analisa_harian WHERE ticker = '{args.ticker.upper()}' GROUP BY ticker"
+    else:
+        query = "SELECT ticker, MAX(date) as max_date FROM analisa_harian GROUP BY ticker"
+        
     analyzed_tickers = pd.read_sql(query, conn)['ticker'].tolist()
     conn.close()
     
+    if not analyzed_tickers:
+        print("[*] Tidak ada ticker untuk dianalisa bandarmology.")
+        sys.exit(0)
+
     print(f"[*] Menghitung jejak bandar (VWAP & OBV) untuk {len(analyzed_tickers)} saham...")
     
     for ticker in analyzed_tickers:
