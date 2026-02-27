@@ -78,23 +78,12 @@
         {
             "parameters": {
                 "method": "POST",
-                "url": "https://openrouter.ai/api/v1/chat/completions",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "Bearer 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"
-                        },
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
-                        }
-                    ]
-                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": false,
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ { \"model\": \"google/gemini-2.5-flash\", \"messages\": [ { \"role\": \"system\", \"content\": $json.system_prompt }, { \"role\": \"user\", \"content\": \"Buatkan berita pasar berdasarkan data ini: \" + JSON.stringify($json.raw_signals) } ] } }}",
+                "jsonBody": "={{ { \"model\": \"google/gemini-2.5-flash\", \"messages\": [ { \"role\": \"system\", \"content\": $('Panggil Saham AI API (Radar)').first().json.system_prompt }, { \"role\": \"user\", \"content\": \"Buatkan berita pasar berdasarkan data ini: \" + JSON.stringify($('Panggil Saham AI API (Radar)').first().json.raw_signals) } ] } }}",
                 "options": {
                     "timeout": 60000
                 }
