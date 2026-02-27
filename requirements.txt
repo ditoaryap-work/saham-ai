@@ -7,3 +7,4 @@ feedparser
 python-telegram-bot
 fastapi
 uvicorn
+ta
