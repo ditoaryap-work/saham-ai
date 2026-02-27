@@ -58,26 +58,22 @@
         {
             "parameters": {
                 "conditions": {
-                    "conditions": [
+                    "string": [
                         {
-                            "leftValue": "={{ $json.status }}",
-                            "rightValue": "success",
-                            "operator": {
-                                "type": "string",
-                                "operation": "equals"
-                            }
+                            "value1": "={{ $json.status }}",
+                            "value2": "success"
                         }
-                    ],
-                    "combinator": "and"
+                    ]
                 }
             },
             "name": "Cek Status Signal",
             "type": "n8n-nodes-base.if",
-            "typeVersion": 2,
+            "typeVersion": 1,
             "position": [
                 700,
                 360
-            ]
+            ],
+            "id": "6"
         },
         {
             "parameters": {
