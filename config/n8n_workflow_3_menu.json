@@ -21,21 +21,10 @@
                     "string": [
                         {
                             "value1": "={{ $json.message.text }}",
-                            "operation": "startsWith",
-                            "value2": "/menu"
-                        },
-                        {
-                            "value1": "={{ $json.message.text }}",
-                            "operation": "startsWith",
-                            "value2": "/start"
-                        },
-                        {
-                            "value1": "={{ $json.message.text }}",
-                            "operation": "startsWith",
-                            "value2": "/help"
+                            "operation": "regex",
+                            "value2": "^/(menu|start|help)($|\\s)"
                         }
-                    ],
-                    "combinator": "or"
+                    ]
                 }
             },
             "name": "IF Menu Command",
