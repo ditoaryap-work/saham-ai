@@ -1,0 +1,91 @@
+{
+    "name": "Saham AI - Interaksi Menu (/menu)",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "message"
+                ]
+            },
+            "name": "Telegram Trigger",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.message.text }}",
+                            "operation": "startsWith",
+                            "value2": "/menu"
+                        },
+                        {
+                            "value1": "={{ $json.message.text }}",
+                            "operation": "startsWith",
+                            "value2": "/start"
+                        },
+                        {
+                            "value1": "={{ $json.message.text }}",
+                            "operation": "startsWith",
+                            "value2": "/help"
+                        }
+                    ],
+                    "combinator": "or"
+                }
+            },
+            "name": "IF Menu Command",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                420,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+                "text": "Selamat datang di **Saham AI Bot**! 🤖📈\n\nSaya adalah asisten pintar Anda untuk menganalisa pasar saham Indonesia.\n\nSilakan gunakan perintah cepat berikut:\n\n🔍 `/cek KODESAHAM`\nAnalisis spesifik & rekomendasi AI untuk 1 saham secara mendalam. *(Contoh: `/cek BBCA`)*\n\n📡 `/radar`\nBeri saya *market brief* dan daftar saham-saham pilihan yang berpotensi *breakout* dari Watchlist Anda hari ini. *(Command ini belum aktif via trigger manual, tunggu update berikutnya!)*\n\n_Catatan: Mesin AI akan memproses setiap request Anda secara real-time dari data Bursa (Yahoo Finance YF)._\n\nKetik `/menu` kapan saja untuk melihat pesan ini.",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "name": "Kirim Menu Utama",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                660,
+                280
+            ]
+        }
+    ],
+    "connections": {
+        "Telegram Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "IF Menu Command",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Menu Command": {
+            "main": [
+                [
+                    {
+                        "node": "Kirim Menu Utama",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}

@@ -130,7 +130,7 @@
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={\n  \"model\": \"google/gemini-2.5-flash\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.system_prompt) }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(JSON.stringify($json.raw_signals)) }}\n    }\n  ]\n}",
+                "jsonBody": "={{ { \"model\": \"google/gemini-2.5-flash\", \"messages\": [ { \"role\": \"system\", \"content\": $json.system_prompt }, { \"role\": \"user\", \"content\": \"Buatkan analisa spesifik untuk data berikut: \" + JSON.stringify($json.raw_signals) } ] } }}",
                 "options": {
                     "timeout": 60000
                 }
