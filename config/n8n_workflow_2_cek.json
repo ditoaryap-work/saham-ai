@@ -18,25 +18,18 @@
         {
             "parameters": {
                 "conditions": {
-                    "options": {
-                        "caseSensitive": false
-                    },
-                    "conditions": [
+                    "string": [
                         {
-                            "leftValue": "={{ $json.message.text }}",
-                            "rightValue": "/cek",
-                            "operator": {
-                                "type": "string",
-                                "operation": "startsWith"
-                            }
+                            "value1": "={{ $json.message.text }}",
+                            "operation": "startsWith",
+                            "value2": "/cek"
                         }
-                    ],
-                    "combinator": "and"
+                    ]
                 }
             },
             "name": "IF Command Cek",
             "type": "n8n-nodes-base.if",
-            "typeVersion": 2,
+            "typeVersion": 1,
             "position": [
                 440,
                 340
@@ -57,22 +50,17 @@
         {
             "parameters": {
                 "conditions": {
-                    "conditions": [
+                    "boolean": [
                         {
-                            "leftValue": "={{ $json.valid }}",
-                            "rightValue": true,
-                            "operator": {
-                                "type": "boolean",
-                                "operation": "equals"
-                            }
+                            "value1": "={{ $json.valid }}",
+                            "value2": true
                         }
-                    ],
-                    "combinator": "and"
+                    ]
                 }
             },
             "name": "IF Valid Ticker",
             "type": "n8n-nodes-base.if",
-            "typeVersion": 2,
+            "typeVersion": 1,
             "position": [
                 880,
                 340
