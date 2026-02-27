@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 import os
 import sys
+import time
 
 # Konfigurasi Path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -59,12 +60,18 @@ def fetch_data(ticker_list, period="1y"):
         print(f"  -> Mengunduh: {yf_ticker}")
         
         try:
+            # Memanipulasi session request untuk mengecoh anti-bot Yahoo
+            session = yf.utils.get_tz_cache().session
+            if session:
+                session.headers['User-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            
             stock = yf.Ticker(yf_ticker)
             # Ambil data historis (default 1 tahun, berguna untuk moving average panjang)
             df = stock.history(period=period)
             
             if df.empty:
                 print(f"  [!] Data {yf_ticker} kosong. Lewati.")
+                time.sleep(1) # Delay kecil untuk aman
                 continue
             
             # Reset index agar Date menjadi kolom biasa
@@ -94,8 +101,12 @@ def fetch_data(ticker_list, period="1y"):
             conn.commit()
             print(f"  [+] Berhasil menyimpan {len(df)} baris data {ticker}.")
             
+            # Memberikan napas pada API Yahoo agar IP tidak diban
+            time.sleep(2)
+            
         except Exception as e:
             print(f"  [X] Gagal memproses {ticker}: {e}")
+            time.sleep(5) # Hukuman delay jika terkena rate limit
             
     conn.close()
     print("[*] Selesai mengumpulkan data.")
