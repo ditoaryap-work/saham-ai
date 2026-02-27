@@ -119,7 +119,7 @@
                 "sendHeaders": false,
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ { \"model\": \"google/gemini-2.0-flash-exp:free\", \"messages\": [ { \"role\": \"system\", \"content\": $('Panggil Saham AI API').item.json.system_prompt }, { \"role\": \"user\", \"content\": \"Buatkan analisa spesifik untuk data berikut: \" + JSON.stringify($('Panggil Saham AI API').item.json.raw_signals) } ] } }}",
+                "jsonBody": "={{ { \"model\": \"arcee-ai/trinity-large-preview:free\", \"messages\": [ { \"role\": \"system\", \"content\": $('Panggil Saham AI API').item.json.system_prompt }, { \"role\": \"user\", \"content\": \"Buatkan analisa spesifik untuk data berikut: \" + JSON.stringify($('Panggil Saham AI API').item.json.raw_signals) } ] } }}",
                 "options": {
                     "timeout": 60000
                 }
