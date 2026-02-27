@@ -60,11 +60,6 @@ def fetch_data(ticker_list, period="1y"):
         print(f"  -> Mengunduh: {yf_ticker}")
         
         try:
-            # Memanipulasi session request untuk mengecoh anti-bot Yahoo
-            session = yf.utils.get_tz_cache().session
-            if session:
-                session.headers['User-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-            
             stock = yf.Ticker(yf_ticker)
             # Ambil data historis (default 1 tahun, berguna untuk moving average panjang)
             df = stock.history(period=period)
