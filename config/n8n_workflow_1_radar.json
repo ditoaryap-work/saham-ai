@@ -1,5 +1,5 @@
 {
-    "name": "Saham AI - Radar Harian via API",
+    "name": "Saham AI - Radar Harian",
     "nodes": [
         {
             "parameters": {
@@ -18,8 +18,7 @@
                 250,
                 300
             ],
-            "typeVersion": 1,
-            "id": "1"
+            "typeVersion": 1.2
         },
         {
             "parameters": {
@@ -38,21 +37,19 @@
                 250,
                 450
             ],
-            "typeVersion": 1,
-            "id": "2"
+            "typeVersion": 1.2
         },
         {
             "parameters": {
-                "url": "=http://localhost:8000/radar",
-                "sendQuery": false,
+                "method": "GET",
+                "url": "http://localhost:8000/radar",
                 "options": {
                     "timeout": 300000
                 }
             },
-            "id": "3",
-            "name": "Panggil Local API (Radar)",
+            "name": "Panggil Saham AI API (Radar)",
             "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
+            "typeVersion": 4.2,
             "position": [
                 480,
                 360
@@ -61,62 +58,62 @@
         {
             "parameters": {
                 "conditions": {
-                    "string": [
+                    "conditions": [
                         {
-                            "value1": "={{ $json.status }}",
-                            "value2": "success"
+                            "leftValue": "={{ $json.status }}",
+                            "rightValue": "success",
+                            "operator": {
+                                "type": "string",
+                                "operation": "equals"
+                            }
                         }
-                    ]
+                    ],
+                    "combinator": "and"
                 }
             },
             "name": "Cek Status Signal",
             "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
             "position": [
                 700,
                 360
-            ],
-            "typeVersion": 1,
-            "id": "6"
+            ]
         },
         {
             "parameters": {
                 "method": "POST",
                 "url": "https://openrouter.ai/api/v1/chat/completions",
-                "authentication": "genericCredentialType",
-                "genericAuthType": "httpHeaderAuth",
-                "sendBody": true,
-                "bodyParameters": {
+                "sendHeaders": true,
+                "headerParameters": {
                     "parameters": [
                         {
-                            "name": "model",
-                            "value": "google/gemini-2.5-flash"
+                            "name": "Authorization",
+                            "value": "Bearer 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"
                         },
                         {
-                            "name": "messages",
-                            "value": "=[{\"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }}}, {\"role\": \"user\", \"content\": \"Buatkan berita pasar berdasarkan data ini: \" + {{ JSON.stringify($json.raw_signals) }} }]"
+                            "name": "Content-Type",
+                            "value": "application/json"
                         }
                     ]
                 },
-                "options": {}
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"google/gemini-2.5-flash\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.system_prompt) }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(JSON.stringify($json.raw_signals)) }}\n    }\n  ]\n}",
+                "options": {
+                    "timeout": 60000
+                }
             },
             "name": "Tanya AI (OpenRouter)",
             "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
             "position": [
                 920,
                 340
-            ],
-            "typeVersion": 4.1,
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "2",
-                    "name": "Header Auth account"
-                }
-            },
-            "id": "7"
+            ]
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id || 'YOUR_CHAT_ID' }}",
+                "chatId": "8498817110",
                 "text": "={{ $json.choices[0].message.content }}",
                 "additionalFields": {
                     "parse_mode": "Markdown"
@@ -124,38 +121,24 @@
             },
             "name": "Kirim ke Telegram",
             "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
             "position": [
                 1140,
                 340
-            ],
-            "typeVersion": 1.1,
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            },
-            "id": "8"
+            ]
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id || 'YOUR_CHAT_ID' }}",
-                "text": "Pasar hari ini kurang mendukung. Tidak ada sinyal BUY valid (skor di atas 70) yang ditemukan oleh AI Engine."
+                "chatId": "8498817110",
+                "text": "📊 Pasar hari ini kurang mendukung.\nTidak ada sinyal BUY valid (skor di atas 70) yang ditemukan oleh AI Engine."
             },
             "name": "Telegram (No Signal)",
             "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
             "position": [
                 920,
                 540
-            ],
-            "typeVersion": 1.1,
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            },
-            "id": "9"
+            ]
         }
     ],
     "connections": {
@@ -163,7 +146,7 @@
             "main": [
                 [
                     {
-                        "node": "Panggil Local API (Radar)",
+                        "node": "Panggil Saham AI API (Radar)",
                         "type": "main",
                         "index": 0
                     }
@@ -174,14 +157,14 @@
             "main": [
                 [
                     {
-                        "node": "Panggil Local API (Radar)",
+                        "node": "Panggil Saham AI API (Radar)",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Panggil Local API (Radar)": {
+        "Panggil Saham AI API (Radar)": {
             "main": [
                 [
                     {

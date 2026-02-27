@@ -1,5 +1,5 @@
 {
-    "name": "Saham AI - Analisis Cepat (/cek) via API",
+    "name": "Saham AI - Cek Saham (/cek)",
     "nodes": [
         {
             "parameters": {
@@ -7,38 +7,36 @@
                     "message"
                 ]
             },
-            "id": "e43d4c38-df6c-4b57-9d7a-111122223333",
             "name": "Telegram Trigger",
             "type": "n8n-nodes-base.telegramTrigger",
-            "typeVersion": 1,
+            "typeVersion": 1.1,
             "position": [
                 220,
                 340
-            ],
-            "webhookId": "b11a4c4e-fa8b-4b24-b1eb-ce7e7d9b9900",
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            }
+            ]
         },
         {
             "parameters": {
                 "conditions": {
-                    "string": [
+                    "options": {
+                        "caseSensitive": false
+                    },
+                    "conditions": [
                         {
-                            "value1": "={{ $json.message.text }}",
-                            "operation": "startsWith",
-                            "value2": "/cek"
+                            "leftValue": "={{ $json.message.text }}",
+                            "rightValue": "/cek",
+                            "operator": {
+                                "type": "string",
+                                "operation": "startsWith"
+                            }
                         }
-                    ]
+                    ],
+                    "combinator": "and"
                 }
             },
-            "id": "f58f4b59-af2d-4b47-8f5b-111122224444",
             "name": "IF Command Cek",
             "type": "n8n-nodes-base.if",
-            "typeVersion": 1,
+            "typeVersion": 2,
             "position": [
                 440,
                 340
@@ -46,99 +44,82 @@
         },
         {
             "parameters": {
-                "jsCode": "const text = $json.message.text || '';\nconst parts = text.split(' ');\n\nif (parts.length < 2) {\n  return { json: { valid: false, message: 'Format salah. Gunakan /cek KODESAHAM (contoh: /cek BBCA)' } };\n}\n\nreturn { json: { valid: true, ticker: parts[1].toUpperCase() } };"
+                "jsCode": "// Ambil teks pesan dari Telegram\nconst text = $input.first().json.message.text || '';\nconst parts = text.trim().split(/\\s+/);\n\nif (parts.length < 2) {\n  return [{ json: { valid: false, error_msg: '❌ Format salah.\\nGunakan: /cek KODESAHAM\\nContoh: /cek BBCA' } }];\n}\n\nconst ticker = parts[1].toUpperCase();\n\n// Validasi: hanya huruf, 4 karakter\nif (!/^[A-Z]{4}$/.test(ticker)) {\n  return [{ json: { valid: false, error_msg: '❌ Kode saham tidak valid: ' + ticker + '\\nKode saham harus 4 huruf. Contoh: BBCA, TLKM, ASII' } }];\n}\n\nreturn [{ json: { valid: true, ticker: ticker } }];"
             },
-            "id": "c62f2e56-ff7d-4b35-ae5a-111122225555",
             "name": "Extract Ticker",
             "type": "n8n-nodes-base.code",
-            "typeVersion": 1,
+            "typeVersion": 2,
             "position": [
                 660,
-                320
+                340
             ]
         },
         {
             "parameters": {
                 "conditions": {
-                    "boolean": [
+                    "conditions": [
                         {
-                            "value1": "={{ $json.valid }}",
-                            "value2": true
+                            "leftValue": "={{ $json.valid }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
                         }
-                    ]
+                    ],
+                    "combinator": "and"
                 }
             },
-            "id": "d74e3d67-ba4c-4a56-bf6c-111122226666",
             "name": "IF Valid Ticker",
             "type": "n8n-nodes-base.if",
-            "typeVersion": 1,
+            "typeVersion": 2,
             "position": [
-                860,
-                320
+                880,
+                340
             ]
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
-                "text": "={{ $json.message }}"
+                "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+                "text": "={{ $json.error_msg }}"
             },
-            "id": "e85f4e78-cb5d-4a67-cf7d-111122227777",
             "name": "Kirim Error Format",
             "type": "n8n-nodes-base.telegram",
-            "typeVersion": 1.1,
+            "typeVersion": 1.2,
             "position": [
-                1080,
-                480
-            ],
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            }
+                1100,
+                500
+            ]
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
-                "text": "=⏳ Tunggu sebentar, sedang menganalisis {{ $json.ticker }} secara real-time..."
+                "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+                "text": "=⏳ Tunggu sebentar, sedang menganalisis *{{ $json.ticker }}* secara real-time...",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
             },
-            "id": "123f4e78-cb5d-4a67-cf7d-111122227788",
             "name": "Kirim Status Loading",
             "type": "n8n-nodes-base.telegram",
-            "typeVersion": 1.1,
+            "typeVersion": 1.2,
             "position": [
-                1080,
+                1100,
                 280
-            ],
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            }
+            ]
         },
         {
             "parameters": {
-                "url": "=http://localhost:8000/cek?ticker={{ $('Extract Ticker').item.json.ticker }}",
-                "sendQuery": true,
-                "queryParameters": {
-                    "parameters": [
-                        {
-                            "name": "ticker",
-                            "value": "={{ $('Extract Ticker').item.json.ticker }}"
-                        }
-                    ]
-                },
+                "method": "GET",
+                "url": "=http://localhost:8000/cek?ticker={{ $('Extract Ticker').first().json.ticker }}",
                 "options": {
                     "timeout": 120000
                 }
             },
-            "id": "a96a5f89-dc6e-4b78-de8e-11112222ab88",
-            "name": "Panggil Local API",
+            "name": "Panggil Saham AI API",
             "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
+            "typeVersion": 4.2,
             "position": [
-                1300,
+                1320,
                 280
             ]
         },
@@ -146,60 +127,49 @@
             "parameters": {
                 "method": "POST",
                 "url": "https://openrouter.ai/api/v1/chat/completions",
-                "authentication": "genericCredentialType",
-                "genericAuthType": "httpHeaderAuth",
-                "sendBody": true,
-                "bodyParameters": {
+                "sendHeaders": true,
+                "headerParameters": {
                     "parameters": [
                         {
-                            "name": "model",
-                            "value": "google/gemini-2.5-flash"
+                            "name": "Authorization",
+                            "value": "Bearer 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"
                         },
                         {
-                            "name": "messages",
-                            "value": "=[{\"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }}}, {\"role\": \"user\", \"content\": \"Buatkan analisa spesifik untuk data berikut: \" + {{ JSON.stringify($json.raw_signals) }} }]"
+                            "name": "Content-Type",
+                            "value": "application/json"
                         }
                     ]
                 },
-                "options": {}
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"model\": \"google/gemini-2.5-flash\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": {{ JSON.stringify($json.system_prompt) }}\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(JSON.stringify($json.raw_signals)) }}\n    }\n  ]\n}",
+                "options": {
+                    "timeout": 60000
+                }
             },
-            "id": "c39d8i12-gf9b-4e01-f1b1-11112222bbbb",
             "name": "Tanya AI (OpenRouter)",
             "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
+            "typeVersion": 4.2,
             "position": [
-                1520,
+                1540,
                 280
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "2",
-                    "name": "Header Auth account"
-                }
-            }
+            ]
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+                "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
                 "text": "={{ $json.choices[0].message.content }}",
                 "additionalFields": {
                     "parse_mode": "Markdown"
                 }
             },
-            "id": "d40e9j23-hg0c-4f12-g2c2-11112222cccc",
             "name": "Kirim Hasil ke Telegram",
             "type": "n8n-nodes-base.telegram",
-            "typeVersion": 1.1,
+            "typeVersion": 1.2,
             "position": [
-                1740,
+                1760,
                 280
-            ],
-            "credentials": {
-                "telegramApi": {
-                    "id": "1",
-                    "name": "Telegram account"
-                }
-            }
+            ]
         }
     ],
     "connections": {
@@ -258,14 +228,14 @@
             "main": [
                 [
                     {
-                        "node": "Panggil Local API",
+                        "node": "Panggil Saham AI API",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Panggil Local API": {
+        "Panggil Saham AI API": {
             "main": [
                 [
                     {
