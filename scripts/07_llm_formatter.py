@@ -63,7 +63,7 @@ def prepare_llm_payload(ticker_filter=None):
             "kode": f"{row['ticker']}",
             "tier": row['tier'],
             "keputusan_ai": row['final_decision'],
-            "skor_akhir_sistem": int(row['final_score']),
+            "skor_akhir_sistem": int(row['final_score']) if pd.notna(row.get('final_score')) else 0,
             "harga_terakhir": float(row['close_price']),
             "area_support_terdekat": float(row['support_area']) if 'support_area' in row and pd.notna(row['support_area']) else 0.0,
             "area_resistance_terdekat": float(row['resistance_area']) if 'resistance_area' in row and pd.notna(row['resistance_area']) else 0.0,
