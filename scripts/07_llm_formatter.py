@@ -49,11 +49,15 @@ def prepare_llm_payload(ticker_filter=None):
         try:
             if pd.notna(row['news_headlines']) and str(row['news_headlines']).strip() != "":
                 headlines_json = json.loads(row['news_headlines'])
-                headlines = [h['title'] for h in headlines_json]
+                for h in headlines_json:
+                    headlines.append({
+                        "judul": h.get("title", ""),
+                        "tautan": h.get("link", "")
+                    })
             else:
-                headlines = ["Tidak ada berita signifikan 72 jam terakhir."]
+                headlines = [{"judul": "Tidak ada berita signifikan 72 jam terakhir.", "tautan": ""}]
         except:
-            headlines = ["Tidak ada berita signifikan 72 jam terakhir."]
+            headlines = [{"judul": "Tidak ada berita signifikan 72 jam terakhir.", "tautan": ""}]
 
         signal_data = {
             "kode": f"{row['ticker']}",
@@ -61,8 +65,11 @@ def prepare_llm_payload(ticker_filter=None):
             "keputusan_ai": row['final_decision'],
             "skor_akhir_sistem": int(row['final_score']),
             "harga_terakhir": float(row['close_price']),
+            "area_support_terdekat": float(row['support_area']) if 'support_area' in row and pd.notna(row['support_area']) else 0.0,
+            "area_resistance_terdekat": float(row['resistance_area']) if 'resistance_area' in row and pd.notna(row['resistance_area']) else 0.0,
             "stop_loss_rekomendasi": float(row['sl_price']),
-            "take_profit_rekomendasi": float(row['tp1_price']),
+            "take_profit_1": float(row['tp1_price']),
+            "take_profit_2": float(row['tp2_price']) if 'tp2_price' in row and pd.notna(row['tp2_price']) else 0.0,
             "kondisi_teknikal": row['trend_status'],
             "kondisi_macd": row['macd_signal'],
             "kondisi_bandarmologi": row['bandar_status'],
@@ -74,9 +81,14 @@ def prepare_llm_payload(ticker_filter=None):
     mode_text = f"Analisa Spesifik {ticker_filter.upper()}" if ticker_filter else "Radar Saham / Morning Briefing"
     
     system_prompt = f"""Kamu adalah Asisten AI Saham Profesional (Quant Trader) di Bursa Efek Indonesia (IHSG). 
-Tugasmu adalah merangkum data objektif JSON berikut yang dihasilkan oleh algoritma Python, dan menuliskannya ulang menjadi pesan Telegram "{mode_text}" yang terstruktur, rapi, dan meyakinkan untuk seorang trader.
-Gunakan emoticon yang sesuai. Jadikan analisisnya seakan-akan kamu adalah pakar pasar modal yang membaca data tersebut, tapi tetap ringkas. 
-WAJIB menyorot indikasi penting seperti ledakan volume (akumulasi) atau kondisi jenuh jual (oversold). Dilarang menyarankan hold untuk saham Gorengan (Tier 3)."""
+Tugasmu adalah menganalisis data JSON dari algoritma Python dan merangkumnya menjadi pesan Telegram "{mode_text}".
+ATURAN WAJIB (System Prompt V2):
+1. BERSIKAP TEGAS & KRITIS. Jangan bertele-tele. Jika data buruk (Downtrend/Distribusi), katakan SKIP/JAUHI. Jika bagus, katakan BUY/HOLD.
+2. Saat memberikan rekomendasi Buy/Sell, jelaskan MENGAPA harga referensinya di angka tersebut (Singgung angka Support/Resistance terdekat yang ada di data).
+3. Berikan pencerahan matang terkait Target Take Profit 1 (Konservatif), Target Profit 2 (Optimis/Swing), dan Stop Loss yang ketat.
+4. Lampirkan URL/Link asli berita dari data JSON jika ada (Gunakan format markdown `[Judul Berita](Link)`.
+5. Gunakan format yang kaya (Banyak paragraf pendek, list, *bold*, emoticon 📈📉🎯💸) layaknya diskusi dengan mentor pasar modal.
+6. Pantang keras menyarankan "Hold" atau "Buy" untuk saham GORENGAN (Tier 3) jika indikator bandar menunjukkan Distribusi."""
     
     payload = {
         "status": "success",

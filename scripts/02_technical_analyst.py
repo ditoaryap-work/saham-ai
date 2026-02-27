@@ -28,6 +28,15 @@ def setup_analysis_table():
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
+    
+    # Migrasi penambahan kolom baru untuk V2
+    cursor.execute("PRAGMA table_info(analisa_harian)")
+    columns = [row[1] for row in cursor.fetchall()]
+    for col_def in ['tp2_price REAL', 'support_area REAL', 'resistance_area REAL']:
+        col_name = col_def.split()[0]
+        if col_name not in columns:
+            cursor.execute(f"ALTER TABLE analisa_harian ADD COLUMN {col_def}")
+            
     conn.commit()
     conn.close()
 
@@ -135,6 +144,9 @@ def generate_signals(ticker, df):
     # 5. Penetapan SL dan TP berbasis ATR (Standar Pro)
     sl_price = close - (1.5 * atr)
     tp1_price = close + (2.0 * atr)
+    tp2_price = close + (3.5 * atr)
+    support_area = close - (0.5 * atr)
+    resistance_area = close + (1.0 * atr)
     
     # Normalisasi Skor (Misal Maks 7 poin di konversi ke skala 1-100 khusus teknikal porsi)
     # Namun karena ini hanya 1 Layer (Layer Teknikal), biarkan nilainya mentah atau max 100
@@ -151,7 +163,10 @@ def generate_signals(ticker, df):
         'volume_spike_ratio': vol_ratio if pd.notna(vol_ratio) else 0.0,
         'atr_14': atr if pd.notna(atr) else 0,
         'sl_price': sl_price,
+        'support_area': support_area,
+        'resistance_area': resistance_area,
         'tp1_price': tp1_price,
+        'tp2_price': tp2_price,
         'tech_score': tech_score,
         'tier': tier
     }
@@ -162,12 +177,13 @@ def save_analysis(result):
     cursor = conn.cursor()
     cursor.execute('''
         INSERT OR REPLACE INTO analisa_harian 
-        (ticker, date, close_price, trend_status, rsi_14, macd_signal, volume_spike_ratio, atr_14, sl_price, tp1_price, tech_score, tier, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        (ticker, date, close_price, trend_status, rsi_14, macd_signal, volume_spike_ratio, atr_14, sl_price, support_area, resistance_area, tp1_price, tp2_price, tech_score, tier, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ''', (
         result['ticker'], result['date'], result['close_price'], result['trend_status'], 
         result['rsi_14'], result['macd_signal'], result['volume_spike_ratio'], 
-        result['atr_14'], result['sl_price'], result['tp1_price'], result['tech_score'], result['tier']
+        result['atr_14'], result['sl_price'], result['support_area'], result['resistance_area'],
+        result['tp1_price'], result['tp2_price'], result['tech_score'], result['tier']
     ))
     conn.commit()
     conn.close()

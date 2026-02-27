@@ -46,6 +46,7 @@ def scrape_google_news(ticker, max_news=5):
             if published_dt >= time_limit:
                 headlines.append({
                     "title": entry.title,
+                    "link": entry.link,
                     "date": published_dt.strftime("%Y-%m-%d %H:%M")
                 })
         except:

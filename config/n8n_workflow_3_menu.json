@@ -40,7 +40,52 @@
                 "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
                 "text": "Selamat datang di **Saham AI Bot**! 🤖📈\n\nSaya adalah asisten pintar Anda untuk menganalisa pasar saham Indonesia.\n\nSilakan gunakan perintah cepat berikut:\n\n🔍 `/cek KODESAHAM`\nAnalisis spesifik & rekomendasi AI untuk 1 saham secara mendalam. *(Contoh: `/cek BBCA`)*\n\n📡 `/radar`\nBeri saya *market brief* dan daftar saham-saham pilihan yang berpotensi *breakout* dari Watchlist Anda hari ini. *(Command ini belum aktif via trigger manual, tunggu update berikutnya!)*\n\n_Catatan: Mesin AI akan memproses setiap request Anda secara real-time dari data Bursa (Yahoo Finance YF)._\n\nKetik `/menu` kapan saja untuk melihat pesan ini.",
                 "additionalFields": {
-                    "parse_mode": "Markdown"
+                    "parse_mode": "Markdown",
+                    "replyMarkup": "replyKeyboard",
+                    "replyKeyboardOptions": {
+                        "keyboard": {
+                            "keyboardValue": [
+                                {
+                                    "line": [
+                                        {
+                                            "text": "/cek BBCA"
+                                        },
+                                        {
+                                            "text": "/cek BBRI"
+                                        },
+                                        {
+                                            "text": "/cek BMRI"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "line": [
+                                        {
+                                            "text": "/cek BBNI"
+                                        },
+                                        {
+                                            "text": "/cek ASII"
+                                        },
+                                        {
+                                            "text": "/cek TLKM"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "line": [
+                                        {
+                                            "text": "/radar"
+                                        },
+                                        {
+                                            "text": "/menu"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "resize_keyboard": true,
+                        "one_time_keyboard": false
+                    }
                 }
             },
             "name": "Kirim Menu Utama",
