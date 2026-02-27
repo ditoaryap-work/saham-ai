@@ -6,13 +6,25 @@ import argparse
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
 
+def get_python_executable():
+    """Mengambil path python dari virtual environment jika ada, jika tidak fallback ke sys.executable"""
+    venv_python = os.path.join(BASE_DIR, 'venv', 'bin', 'python3')
+    if not os.path.exists(venv_python):
+        venv_python = os.path.join(BASE_DIR, 'venv', 'bin', 'python')
+    if not os.path.exists(venv_python):
+        # Fallback Windows
+        venv_python = os.path.join(BASE_DIR, 'venv', 'Scripts', 'python.exe')
+        
+    return venv_python if os.path.exists(venv_python) else sys.executable
+
 def run_script(script_name, args=None):
     script_path = os.path.join(SCRIPTS_DIR, script_name)
     print(f"\n{'='*60}")
     print(f"🚀 MENJALANKAN: {script_name}")
     print(f"{'='*60}")
     
-    cmd = [sys.executable, script_path]
+    python_exe = get_python_executable()
+    cmd = [python_exe, script_path]
     if args:
         cmd.extend(args)
         
