@@ -1,0 +1,328 @@
+{
+    "name": "Saham AI - Analisis Cepat (/cek)",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "message"
+                ]
+            },
+            "id": "e43d4c38-df6c-4b57-9d7a-111122223333",
+            "name": "Telegram Trigger",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1,
+            "position": [
+                220,
+                340
+            ],
+            "webhookId": "b11a4c4e-fa8b-4b24-b1eb-ce7e7d9b9900",
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.message.text }}",
+                            "operation": "startsWith",
+                            "value2": "/cek"
+                        }
+                    ]
+                }
+            },
+            "id": "f58f4b59-af2d-4b47-8f5b-111122224444",
+            "name": "IF Command Cek",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                440,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const text = $json.message.text || '';\nconst parts = text.split(' ');\n\nif (parts.length < 2) {\n  return { json: { valid: false, message: 'Format salah. Gunakan /cek KODESAHAM (contoh: /cek BBCA)' } };\n}\n\nreturn { json: { valid: true, ticker: parts[1].toUpperCase() } };"
+            },
+            "id": "c62f2e56-ff7d-4b35-ae5a-111122225555",
+            "name": "Extract Ticker",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                660,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.valid }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "d74e3d67-ba4c-4a56-bf6c-111122226666",
+            "name": "IF Valid Ticker",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                860,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+                "text": "={{ $json.message }}"
+            },
+            "id": "e85f4e78-cb5d-4a67-cf7d-111122227777",
+            "name": "Kirim Error Format",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                1080,
+                480
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+                "text": "=⏳ Tunggu sebentar, sedang menganalisis {{ $json.ticker }} secara real-time..."
+            },
+            "id": "123f4e78-cb5d-4a67-cf7d-111122227788",
+            "name": "Kirim Status Loading",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                1080,
+                280
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "command": "=cd ~/saham-ai && source venv/bin/activate && python3 scripts/08_run_all.py --ticker {{ $('Extract Ticker').item.json.ticker }}"
+            },
+            "id": "f96a5f89-dc6e-4b78-de8e-111122228888",
+            "name": "Jalankan Analisa VPS",
+            "type": "n8n-nodes-base.executeCommand",
+            "typeVersion": 1,
+            "position": [
+                1300,
+                280
+            ]
+        },
+        {
+            "parameters": {
+                "fileSelector": "/home/ditoaryap/saham-ai/data/llm_payload.json"
+            },
+            "id": "a17b6g90-ed7f-4c89-df9f-111122229999",
+            "name": "Baca Hasil JSON",
+            "type": "n8n-nodes-base.readBinaryFile",
+            "typeVersion": 1,
+            "position": [
+                1520,
+                280
+            ]
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "b28c7h01-fe8a-4d90-e0a0-11112222aaaa",
+            "name": "Extract JSON",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "position": [
+                1740,
+                280
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://openrouter.ai/api/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "model",
+                            "value": "google/gemini-2.5-flash"
+                        },
+                        {
+                            "name": "messages",
+                            "value": "=[{\"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }}}, {\"role\": \"user\", \"content\": \"Buatkan analisa spesifik untuk data berikut: \" + {{ JSON.stringify($json.raw_signals) }} }]"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "c39d8i12-gf9b-4e01-f1b1-11112222bbbb",
+            "name": "Tanya AI (OpenRouter)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1960,
+                280
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "2",
+                    "name": "Header Auth account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+                "text": "={{ $json.choices[0].message.content }}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "d40e9j23-hg0c-4f12-g2c2-11112222cccc",
+            "name": "Kirim Hasil ke Telegram",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                2180,
+                280
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "1",
+                    "name": "Telegram account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Telegram Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "IF Command Cek",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Command Cek": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Ticker",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Ticker": {
+            "main": [
+                [
+                    {
+                        "node": "IF Valid Ticker",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Valid Ticker": {
+            "main": [
+                [
+                    {
+                        "node": "Kirim Status Loading",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Kirim Error Format",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Kirim Status Loading": {
+            "main": [
+                [
+                    {
+                        "node": "Jalankan Analisa VPS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Jalankan Analisa VPS": {
+            "main": [
+                [
+                    {
+                        "node": "Baca Hasil JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Baca Hasil JSON": {
+            "main": [
+                [
+                    {
+                        "node": "Extract JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract JSON": {
+            "main": [
+                [
+                    {
+                        "node": "Tanya AI (OpenRouter)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Tanya AI (OpenRouter)": {
+            "main": [
+                [
+                    {
+                        "node": "Kirim Hasil ke Telegram",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}
