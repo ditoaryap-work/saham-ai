@@ -1,5 +1,5 @@
 {
-    "name": "Saham AI - Radar Harian",
+    "name": "Saham AI - Radar Harian via API",
     "nodes": [
         {
             "parameters": {
@@ -43,41 +43,20 @@
         },
         {
             "parameters": {
-                "command": "cd /Users/ditoaryap/Documents/Project/saham-ai && source venv/bin/activate && python3 scripts/08_run_all.py",
-                "executeOnce": true
+                "url": "=http://localhost:8000/radar",
+                "sendQuery": false,
+                "options": {
+                    "timeout": 300000
+                }
             },
-            "name": "Jalankan Python Engine",
-            "type": "n8n-nodes-base.executeCommand",
+            "id": "3",
+            "name": "Panggil Local API (Radar)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
             "position": [
                 480,
                 360
-            ],
-            "typeVersion": 1,
-            "id": "3"
-        },
-        {
-            "parameters": {
-                "filePath": "/Users/ditoaryap/Documents/Project/saham-ai/data/llm_payload.json"
-            },
-            "name": "Baca Payload JSON",
-            "type": "n8n-nodes-base.readBinaryFile",
-            "position": [
-                700,
-                360
-            ],
-            "typeVersion": 1,
-            "id": "4"
-        },
-        {
-            "parameters": {},
-            "name": "Ekstrak JSON",
-            "type": "n8n-nodes-base.extractFromFile",
-            "position": [
-                920,
-                360
-            ],
-            "typeVersion": 1,
-            "id": "5"
+            ]
         },
         {
             "parameters": {
@@ -93,7 +72,7 @@
             "name": "Cek Status Signal",
             "type": "n8n-nodes-base.if",
             "position": [
-                1140,
+                700,
                 360
             ],
             "typeVersion": 1,
@@ -103,46 +82,41 @@
             "parameters": {
                 "method": "POST",
                 "url": "https://openrouter.ai/api/v1/chat/completions",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "Bearer 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"
-                        },
-                        {
-                            "name": "HTTP-Referer",
-                            "value": "http://localhost:5678"
-                        }
-                    ]
-                },
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
                 "sendBody": true,
                 "bodyParameters": {
                     "parameters": [
                         {
                             "name": "model",
-                            "value": "deepseek/deepseek-chat"
+                            "value": "google/gemini-2.5-flash"
                         },
                         {
                             "name": "messages",
-                            "value": "={{ [\n  {\n    \"role\": \"system\",\n    \"content\": $json.system_prompt\n  },\n  {\n    \"role\": \"user\",\n    \"content\": JSON.stringify($json.raw_signals)\n  }\n] }}"
+                            "value": "=[{\"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }}}, {\"role\": \"user\", \"content\": \"Buatkan berita pasar berdasarkan data ini: \" + {{ JSON.stringify($json.raw_signals) }} }]"
                         }
                     ]
                 },
                 "options": {}
             },
-            "name": "OpenRouter (DeepSeek)",
+            "name": "Tanya AI (OpenRouter)",
             "type": "n8n-nodes-base.httpRequest",
             "position": [
-                1380,
+                920,
                 340
             ],
             "typeVersion": 4.1,
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "2",
+                    "name": "Header Auth account"
+                }
+            },
             "id": "7"
         },
         {
             "parameters": {
-                "chatId": "8498817110",
+                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id || 'YOUR_CHAT_ID' }}",
                 "text": "={{ $json.choices[0].message.content }}",
                 "additionalFields": {
                     "parse_mode": "Markdown"
@@ -151,10 +125,10 @@
             "name": "Kirim ke Telegram",
             "type": "n8n-nodes-base.telegram",
             "position": [
-                1600,
+                1140,
                 340
             ],
-            "typeVersion": 1,
+            "typeVersion": 1.1,
             "credentials": {
                 "telegramApi": {
                     "id": "1",
@@ -165,16 +139,16 @@
         },
         {
             "parameters": {
-                "chatId": "8498817110",
+                "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id || 'YOUR_CHAT_ID' }}",
                 "text": "Pasar hari ini kurang mendukung. Tidak ada sinyal BUY valid (skor di atas 70) yang ditemukan oleh AI Engine."
             },
             "name": "Telegram (No Signal)",
             "type": "n8n-nodes-base.telegram",
             "position": [
-                1380,
+                920,
                 540
             ],
-            "typeVersion": 1,
+            "typeVersion": 1.1,
             "credentials": {
                 "telegramApi": {
                     "id": "1",
@@ -189,7 +163,7 @@
             "main": [
                 [
                     {
-                        "node": "Jalankan Python Engine",
+                        "node": "Panggil Local API (Radar)",
                         "type": "main",
                         "index": 0
                     }
@@ -200,36 +174,14 @@
             "main": [
                 [
                     {
-                        "node": "Jalankan Python Engine",
+                        "node": "Panggil Local API (Radar)",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Jalankan Python Engine": {
-            "main": [
-                [
-                    {
-                        "node": "Baca Payload JSON",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Baca Payload JSON": {
-            "main": [
-                [
-                    {
-                        "node": "Ekstrak JSON",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Ekstrak JSON": {
+        "Panggil Local API (Radar)": {
             "main": [
                 [
                     {
@@ -244,7 +196,7 @@
             "main": [
                 [
                     {
-                        "node": "OpenRouter (DeepSeek)",
+                        "node": "Tanya AI (OpenRouter)",
                         "type": "main",
                         "index": 0
                     }
@@ -258,7 +210,7 @@
                 ]
             ]
         },
-        "OpenRouter (DeepSeek)": {
+        "Tanya AI (OpenRouter)": {
             "main": [
                 [
                     {
@@ -269,5 +221,6 @@
                 ]
             ]
         }
-    }
+    },
+    "pinData": {}
 }
