@@ -18,7 +18,8 @@ def setup_fundamental_columns():
     
     new_columns = [
         'pe_ratio REAL', 'pbv_ratio REAL', 'market_cap INTEGER', 
-        'fundamental_score INTEGER', 'fundamental_status TEXT'
+        'fundamental_score INTEGER', 'fundamental_status TEXT',
+        'is_stale INTEGER DEFAULT 0'
     ]
     for col_def in new_columns:
         col_name = col_def.split()[0]
@@ -28,8 +29,28 @@ def setup_fundamental_columns():
     conn.commit()
     conn.close()
 
+def get_cached_fundamental(ticker):
+    """Mengambil data fundamental terakhir yang sukses dari database."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        query = f"""
+            SELECT pe_ratio, pbv_ratio, market_cap 
+            FROM analisa_harian 
+            WHERE ticker = '{ticker}' 
+            AND pe_ratio > 0 
+            ORDER BY date DESC LIMIT 1
+        """
+        df = pd.read_sql(query, conn)
+        conn.close()
+        if not df.empty:
+            return df.iloc[0].to_dict()
+    except:
+        pass
+    return None
+
 def analyze_fundamental(ticker):
-    """Mengambil dan menskor atribut fundamental emiten. Menggunakan fast_info untuk efisiensi."""
+    """Mengambil dan menskor atribut fundamental emiten. Menggunakan fallback DB jika API Limit."""
+    is_stale = 0
     try:
         yf_ticker = f"{ticker}.JK"
         stock = yf.Ticker(yf_ticker)
@@ -41,7 +62,6 @@ def analyze_fundamental(ticker):
             market_cap = 0
             
         # 2. Ambil P/E dan PBV dari .info (Berat, sering kena 429)
-        # Jika kena Rate Limit, kita set default 0 agar proses scoring tetap lanjut
         pe_ratio = 0.0
         pbv_ratio = 0.0
         
@@ -50,13 +70,21 @@ def analyze_fundamental(ticker):
             pe_ratio = info.get('trailingPE') or 0.0
             pbv_ratio = info.get('priceToBook') or 0.0
         except Exception as e:
-            if "Too Many Requests" in str(e):
-                print(f"    [!] {ticker}: Yahoo Rate Limit (429) saat mengambil P/E & PBV. Menggunakan fallback 0.0.")
+            if "Too Many Requests" in str(e) or market_cap == 0:
+                print(f"    [!] {ticker}: Yahoo Rate Limit/Error. Mencoba ambil dari cache database...")
+                cached = get_cached_fundamental(ticker)
+                if cached:
+                    pe_ratio = cached['pe_ratio']
+                    pbv_ratio = cached['pbv_ratio']
+                    market_cap = cached['market_cap'] if market_cap == 0 else market_cap
+                    is_stale = 1
+                    print(f"    [+] {ticker}: Menggunakan data fundamental cache (EOD Terakhir).")
+                else:
+                    print(f"    [!] {ticker}: Cache tidak tersedia. Menggunakan default 0.0.")
             else:
                 print(f"    [!] {ticker}: Gagal mengambil data .info: {e}")
         
         score = 0
-        
         # Rule 1: Valuasi Laba EPS (P/E Ratio)
         if 0 < pe_ratio < 20: 
             score += 2 # Murah dan menguntungkan
@@ -89,7 +117,8 @@ def analyze_fundamental(ticker):
             'pbv_ratio': pbv_ratio,
             'market_cap': market_cap,
             'fundamental_score': fund_score,
-            'fundamental_status': status
+            'fundamental_status': status,
+            'is_stale': is_stale
         }
     except Exception as e:
         print(f"  [X] Gagal total fetch data fundamental {ticker}: {e}")
@@ -101,12 +130,12 @@ def update_analysis(result):
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE analisa_harian 
-        SET pe_ratio=?, pbv_ratio=?, market_cap=?, fundamental_score=?, fundamental_status=?, last_updated=CURRENT_TIMESTAMP
+        SET pe_ratio=?, pbv_ratio=?, market_cap=?, fundamental_score=?, fundamental_status=?, is_stale=?, last_updated=CURRENT_TIMESTAMP
         WHERE ticker=? 
         AND date = (SELECT MAX(date) FROM analisa_harian WHERE ticker=?)
     ''', (
         result['pe_ratio'], result['pbv_ratio'], result['market_cap'], 
-        result['fundamental_score'], result['fundamental_status'],
+        result['fundamental_score'], result['fundamental_status'], result['is_stale'],
         result['ticker'], result['ticker']
     ))
     conn.commit()

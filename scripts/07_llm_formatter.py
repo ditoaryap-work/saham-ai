@@ -42,8 +42,13 @@ def prepare_llm_payload(ticker_filter=None):
 
     # Siapkan raw text data analisis untuk OpenRouter
     signals = []
+    today_str = datetime.now().strftime("%Y-%m-%d")
     
     for _, row in df.iterrows():
+        # Cek apakah data stale (Tanggal di DB < Hari ini)
+        analysis_date = str(row['date'])
+        data_is_stale = analysis_date < today_str or row.get('is_stale') == 1
+        
         # Parsing headlines json
         headlines = []
         try:
@@ -75,7 +80,9 @@ def prepare_llm_payload(ticker_filter=None):
             "kondisi_bandarmology": row['bandar_status'],
             "kondisi_fundamental": row['fundamental_status'],
             "berita_terbaru": headlines,
-            "image_url": f"https://bot-saham.ditoaryap.my.id/charts/{row['ticker']}.png" # URL Statis Nginx
+            "image_url": f"https://bot-saham.ditoaryap.my.id/charts/{row['ticker']}.png",
+            "data_status": "STALE (Cached)" if data_is_stale else "LIVE (Updated)",
+            "last_price_date": analysis_date
         }
         signals.append(signal_data)
         
@@ -85,17 +92,17 @@ def prepare_llm_payload(ticker_filter=None):
 Tugasmu adalah menganalisis data JSON dari algoritma Python dan merangkumnya menjadi pesan Telegram "{mode_text}".
 
 ATURAN WAJIB (System Prompt V3 - Clean & Visual):
-1. **Dilarang Menampilkan URL Panjang**. Gunakan format Markdown Anchor Text: `[Sumber Berita](Link)`. Jika ada berita, cukup tulis 1-2 berita yang paling relevan.
-2. **Pesan Harus Ringkas & To-The-Point**. Gunakan separator garis (`----------------`) atau emoji untuk memisahkan bagian. Max 2-3 paragraf per saham.
-3. **Visual Chart**: Di awal atau akhir analisa, sebutkan bahwa "Grafik teknikal telah dilampirkan di bawah" (N8N akan mengirim gambarnya).
-4. **Bandarmology**: Jelaskan status bandar (Misal: Akumulasi Kuat / Distribusi) disertai alasan lonjakan volumenya.
-5. **Rekomendasi**: Berikan angka harga beli, TP1, TP2, dan SL dengan sangat jelas.
-6. **Keputusan**: Jangan ambigu! (BUY / WAIT & SEE / SELL)."""
+1. **Waspada Data Stale**: Jika data_status adalah "STALE (Cached)", kamu WAJIB menuliskan peringatan di baris paling atas: "🔴 **Peringatan: Data Belum Update (Menggunakan EOD {analysis_date})**".
+2. **Dilarang Menampilkan URL Panjang**. Gunakan format Markdown Anchor Text: `[Sumber Berita](Link)`.
+3. **Pesan Ringkas**. Gunakan separator garis (`----------------`). Max 2-3 paragraf per saham.
+4. **Visual Chart**: Sebutkan bahwa "Grafik teknikal telah dilampirkan di bawah".
+5. **Bandarmology**: Jelaskan status bandar disertai alasan lonjakan volumenya.
+6. **Rekomendasi**: Berikan angka harga beli, TP1, TP2, dan SL dengan sangat jelas."""
     
     payload = {
         "status": "success",
         "mode": "cek" if ticker_filter else "radar",
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": today_str,
         "total_signals": len(signals),
         "system_prompt": system_prompt,
         "raw_signals": signals
