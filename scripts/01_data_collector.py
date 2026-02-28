@@ -11,6 +11,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'saham.db')
 WATCHLIST_PATH = os.path.join(BASE_DIR, 'config', 'watchlist.txt')
 
+# Konfigurasi YFinance dari dokumentasi resmi (ranaroussi.github.io)
+# Mengaktifkan auto-retry dengan exponential backoff untuk menembus limit ringan
+yf.config.network.retries = 3
+
 def setup_database():
     """Membuat tabel database jika belum ada."""
     print(f"[*] Menyiapkan database di: {DB_PATH}")
@@ -49,62 +53,77 @@ def get_watchlist():
     return tickers
 
 def fetch_data(ticker_list, period="1y"):
-    """Mengambil data dari yfinance lalu memasukkannya ke DB SQLite"""
+    """Mengambil data dari yfinance secara batch lalu memasukkannya ke DB SQLite"""
     conn = sqlite3.connect(DB_PATH)
     
-    print(f"[*] Mulai mengambil data untuk {len(ticker_list)} saham...")
+    # Format tickers untuk Yahoo Finance (.JK)
+    yf_tickers = [f"{t}.JK" for t in ticker_list]
     
-    for ticker in ticker_list:
-        # Di yfinance, saham IHSG diakhiri dengan .JK
-        yf_ticker = f"{ticker}.JK"
-        print(f"  -> Mengunduh: {yf_ticker}")
+    print(f"[*] Mulai mengambil data untuk {len(ticker_list)} saham secara BATCH...")
+    
+    try:
+        # Menggunakan yf.download sesuai anuran dokumentasi resmi (Multi-threading aktif secara default)
+        # group_by='ticker' memastikan struktur data konsisten (Ticker -> Price)
+        df_batch = yf.download(yf_tickers, period=period, group_by='ticker', threads=True)
         
-        try:
-            stock = yf.Ticker(yf_ticker)
-            # Ambil data historis (default 1 tahun, berguna untuk moving average panjang)
-            df = stock.history(period=period)
+        if df_batch.empty:
+            print("[!] Gagal mengunduh data atau data kosong.")
+            return
+
+        cursor = conn.cursor()
+        
+        for ticker in ticker_list:
+            yf_symbol = f"{ticker}.JK"
+            
+            # Mendukung baik hasil MultiIndex (banyak ticker) maupun Single (1 ticker)
+            try:
+                if len(ticker_list) > 1:
+                    if yf_symbol not in df_batch.columns.levels[0]:
+                        continue
+                    df = df_batch[yf_symbol].copy()
+                else:
+                    # Untuk 1 ticker, yfinance mengembalikan DataFrame langsung jika bukan MultiIndex
+                    # Tapi dengan group_by='ticker' dia tetap MultiIndex
+                    df = df_batch[yf_symbol].copy() if yf_symbol in df_batch.columns.levels[0] else df_batch.copy()
+            except Exception:
+                print(f"  [!] Gagal mengambil slice data untuk {ticker}. Lewati.")
+                continue
+
+            # Bersihkan baris yang kosong (misal bursa tutup)
+            df = df.dropna(how='all').reset_index()
             
             if df.empty:
-                print(f"  [!] Data {yf_ticker} kosong. Lewati.")
-                time.sleep(1) # Delay kecil untuk aman
+                print(f"  [!] Data {ticker} kosong setelah pembersihan. Lewati.")
                 continue
+
+            # Standarisasi kolom (lowercase)
+            df.columns = [c.lower() for c in df.columns]
             
-            # Reset index agar Date menjadi kolom biasa
-            df = df.reset_index()
-            
-            # Ekstrak tanggal (hapus info timezone jika ada agar rapi di SQLite)
-            df['Date'] = df['Date'].dt.date
+            # Format tanggal (hapus info jam/timezone)
+            # Kolom index biasanya bernama 'Date' atau 'date'
+            date_col = 'date' if 'date' in df.columns else 'index'
+            df[date_col] = pd.to_datetime(df[date_col]).dt.date
             df['ticker'] = ticker
             
-            # Pilih kolom yang kita butuhkan saja
-            df = df[['ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']]
+            # Pilih & Urutkan kolom sesuai tabel SQLite
+            required_cols = ['ticker', date_col, 'open', 'high', 'low', 'close', 'volume']
+            df = df[required_cols]
             
-            # Ubah nama kolom agar cocok dengan SQLite (lowercase)
-            df.columns = ['ticker', 'date', 'open', 'high', 'low', 'close', 'volume']
-            
-            # Simpan ke SQLite (replace records existing with same primary key)
-            # Metode "to_sql" default tidak punya operasi UPSERT (ON CONFLICT REPLACE)
-            # Jadi kita lakukan insert dengan query SQLite
-            cursor = conn.cursor()
+            # Simpan ke SQLite (UPSERT)
             rows = [tuple(x) for x in df.to_numpy()]
-            
             cursor.executemany('''
                 INSERT OR REPLACE INTO ohlcv (ticker, date, open, high, low, close, volume)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', rows)
             
-            conn.commit()
             print(f"  [+] Berhasil menyimpan {len(df)} baris data {ticker}.")
-            
-            # Memberikan napas pada API Yahoo agar IP tidak diban
-            time.sleep(2)
-            
-        except Exception as e:
-            print(f"  [X] Gagal memproses {ticker}: {e}")
-            time.sleep(5) # Hukuman delay jika terkena rate limit
-            
-    conn.close()
-    print("[*] Selesai mengumpulkan data.")
+
+        conn.commit()
+    except Exception as e:
+        print(f"[X] Terjadi kesalahan fatal saat batch download: {e}")
+    finally:
+        conn.close()
+        print("[*] Selesai pengolahan data.")
 
 if __name__ == "__main__":
     import argparse
