@@ -108,30 +108,47 @@ def generate_signals(ticker, df):
     signals = []
     
     # 1. Trend Analysis (EMA 13, 34, 89)
-    # Pastikan EMA_89 ada (butuh minimal 89 baris data)
-    ema89_val = latest['EMA_89'] if 'EMA_89' in latest and pd.notna(latest['EMA_89']) else 0
+    # Pastikan indikator ada (EMA_34 butuh 34 hari, EMA_89 butuh 89 hari)
+    ema13 = latest['EMA_13'] if 'EMA_13' in latest and pd.notna(latest['EMA_13']) else 0
+    ema34 = latest['EMA_34'] if 'EMA_34' in latest and pd.notna(latest['EMA_34']) else 0
     
-    if close > latest['EMA_13'] > latest['EMA_34']:
-        score += 2
-        trend_status = "UPTREND (Strong)"
-    elif close > latest['EMA_34']:
-        score += 1
-        trend_status = "UPTREND (Weak) / Rebound"
+    if ema34 > 0:
+        if close > ema13 > ema34:
+            score += 2
+            trend_status = "UPTREND (Strong)"
+        elif close > ema34:
+            score += 1
+            trend_status = "UPTREND (Weak) / Rebound"
+        else:
+            trend_status = "DOWNTREND"
     else:
-        trend_status = "DOWNTREND"
+        # Fallback jika data masih pendek (GoAPI 21 hari)
+        if ema13 > 0 and close > ema13:
+            score += 1
+            trend_status = "UPTREND (New Data - Short)"
+        else:
+            trend_status = "DOWNTREND / Konsolidasi"
         
-    # 2. MACD Crossover Signal
+    # 2. MACD Signal (MACD butuh ~35 hari untuk stabil, tapi mulai muncul di >26 hari)
     macd_line_col = 'MACD_12_26_9'
     signal_line_col = 'MACDs_12_26_9'
     
-    if latest[macd_line_col] > latest[signal_line_col] and prev[macd_line_col] <= prev[signal_line_col]:
-        score += 2
-        macd_signal = "Bullish Crossover"
-    elif latest[macd_line_col] > latest[signal_line_col]:
-        score += 1
-        macd_signal = "Bullish"
+    macd_line = latest[macd_line_col] if pd.notna(latest[macd_line_col]) else 0
+    signal_line = latest[signal_line_col] if pd.notna(latest[signal_line_col]) else 0
+    prev_macd = prev[macd_line_col] if pd.notna(prev[macd_line_col]) else 0
+    prev_signal = prev[signal_line_col] if pd.notna(prev[signal_line_col]) else 0
+    
+    if macd_line != 0 and signal_line != 0:
+        if macd_line > signal_line and prev_macd <= prev_signal:
+            score += 2
+            macd_signal = "Bullish Crossover"
+        elif macd_line > signal_line:
+            score += 1
+            macd_signal = "Bullish"
+        else:
+            macd_signal = "Bearish"
     else:
-        macd_signal = "Bearish"
+        macd_signal = "Data MACD Belum Siap"
         
     # 3. RSI Divergence / Oversold
     rsi = latest['RSI_14']

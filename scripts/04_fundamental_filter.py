@@ -29,16 +29,31 @@ def setup_fundamental_columns():
     conn.close()
 
 def analyze_fundamental(ticker):
-    """Mengambil dan menskor atribut fundamental emiten."""
+    """Mengambil dan menskor atribut fundamental emiten. Menggunakan fast_info untuk efisiensi."""
     try:
         yf_ticker = f"{ticker}.JK"
         stock = yf.Ticker(yf_ticker)
-        info = stock.info
         
-        # Seringkali yfinance mereturn None jika data tidak ada
-        pe_ratio = info.get('trailingPE') or 0.0
-        pbv_ratio = info.get('priceToBook') or 0.0
-        market_cap = info.get('marketCap') or 0
+        # 1. Ambil Market Cap dari fast_info (Sangat ringan, anti-ban)
+        try:
+            market_cap = stock.fast_info.get('marketCap') or 0
+        except Exception:
+            market_cap = 0
+            
+        # 2. Ambil P/E dan PBV dari .info (Berat, sering kena 429)
+        # Jika kena Rate Limit, kita set default 0 agar proses scoring tetap lanjut
+        pe_ratio = 0.0
+        pbv_ratio = 0.0
+        
+        try:
+            info = stock.info
+            pe_ratio = info.get('trailingPE') or 0.0
+            pbv_ratio = info.get('priceToBook') or 0.0
+        except Exception as e:
+            if "Too Many Requests" in str(e):
+                print(f"    [!] {ticker}: Yahoo Rate Limit (429) saat mengambil P/E & PBV. Menggunakan fallback 0.0.")
+            else:
+                print(f"    [!] {ticker}: Gagal mengambil data .info: {e}")
         
         score = 0
         
@@ -47,8 +62,6 @@ def analyze_fundamental(ticker):
             score += 2 # Murah dan menguntungkan
         elif pe_ratio >= 20: 
             score += 1 # Menguntungkan tapi premium
-        else:
-            score += 0 # Rugi (P/E minus atau 0)
             
         # Rule 2: Valuasi Aset (PBV Ratio)
         if 0 < pbv_ratio < 3:
@@ -68,7 +81,7 @@ def analyze_fundamental(ticker):
         elif fund_score >= 40:
             status = "Standar"
         else:
-            status = "High Risk (Overvalued/Rugi)"
+            status = "High Risk (Missing Data / Overvalued)"
             
         return {
             'ticker': ticker,
@@ -79,7 +92,7 @@ def analyze_fundamental(ticker):
             'fundamental_status': status
         }
     except Exception as e:
-        print(f"  [X] Gagal fetch data fundamental {ticker}: {e}")
+        print(f"  [X] Gagal total fetch data fundamental {ticker}: {e}")
         return None
 
 def update_analysis(result):
