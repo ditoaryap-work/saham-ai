@@ -56,8 +56,8 @@ def get_latest_data(ticker, days=100):
 
 def analyze_technical(df):
     """Menghitung indikator teknikal kustom untuk Trading Pro."""
-    if len(df) < 50:
-        return None  # Datanya terlalu sedikit
+    if len(df) < 20:
+        return None  # Datanya terlalu sedikit (GoAPI free memberikan 21 hari)
     
     # 1. Moving Averages (Trend Filter)
     df['EMA_13'] = ta.trend.ema_indicator(df['close'], window=13)
@@ -108,6 +108,9 @@ def generate_signals(ticker, df):
     signals = []
     
     # 1. Trend Analysis (EMA 13, 34, 89)
+    # Pastikan EMA_89 ada (butuh minimal 89 baris data)
+    ema89_val = latest['EMA_89'] if 'EMA_89' in latest and pd.notna(latest['EMA_89']) else 0
+    
     if close > latest['EMA_13'] > latest['EMA_34']:
         score += 2
         trend_status = "UPTREND (Strong)"
