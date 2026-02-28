@@ -71,7 +71,7 @@ def analyze_bandarmology(df):
     return df
 
 def generate_bandar_signals(ticker, df):
-    """Membuat keputusan score akumulasi / distribusi dari jejak bandar volume."""
+    """Memperdalam analisa bandar dengan simulasi partisipasi broker (Top 3/5)."""
     if df is None or len(df) < 5:
         return None
         
@@ -80,30 +80,47 @@ def generate_bandar_signals(ticker, df):
     
     close = float(latest['close'])
     vwap = float(latest['VWAP_5d'])
+    volume = float(latest['volume'])
+    
+    # Hitung rata-rata volume 10 hari terakhir
+    avg_vol = df['volume'].tail(10).mean()
+    vol_spike = volume / avg_vol if avg_vol > 0 else 1.0
     
     score = 0
     
-    # Rule 1: Harga vs VWAP
-    # Jika harga close di atas nilai rata-rata VWAP 5 hari, indikasi bandar sedang tarik ke atas
+    # 1. Price vs VWAP (Base)
     if close > vwap:
         score += 2
-        bandar_status = "Akumulasi"
+        base_status = "Akumulasi"
     else:
-        bandar_status = "Distribusi / Mark Down"
+        base_status = "Distribusi"
         
-    # Rule 2: OBV Trend
+    # 2. OBV Trend
     if latest['OBV'] > latest['OBV_MA9']:
         score += 2
-    
-    # Normalisasi ke skala 0-100 untuk porsi Bandarmology
-    bandar_score = int((score / 4) * 100)
-    
-    # Koreksi status jika divergence
-    if close > vwap and latest['OBV'] < latest['OBV_MA9']:
-        bandar_status = "Fake Breakout (Hati-hati)"
-    elif close < vwap and latest['OBV'] > latest['OBV_MA9']:
-        bandar_status = "Hidden Accumulation"
         
+    # 3. Simulasi Broker Intensity (Analisa Volume Spike)
+    # Jika volume > 1.5x rata-rata saat harga naik = Bandar Beli Banyak
+    top_intensity = 0
+    if vol_spike > 1.5:
+        if close >= prev['close']:
+            top_intensity = int(min(vol_spike * 20, 100)) # Skor Max 100
+            bandar_status = f"Heavy Accumulation (Spike x{vol_spike:.1f})"
+            score += 2
+        else:
+            top_intensity = -int(min(vol_spike * 20, 100))
+            bandar_status = f"Heavy Distribution (Spike x{vol_spike:.1f})"
+            score -= 2
+    else:
+        bandar_status = base_status
+        if close > vwap and latest['OBV'] < latest['OBV_MA9']:
+            bandar_status = "Fake Breakout (Hati-hati)"
+        elif close < vwap and latest['OBV'] > latest['OBV_MA9']:
+            bandar_status = "Hidden Accumulation"
+
+    # Normalisasi ke skala 0-100
+    bandar_score = int(np.clip((score / 6) * 100, 0, 100))
+    
     return {
         'ticker': ticker,
         'date': str(latest.name.date()),

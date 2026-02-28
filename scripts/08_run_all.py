@@ -54,6 +54,19 @@ if __name__ == "__main__":
     run_script('04_fundamental_filter.py', ticker_args)
     run_script('05_sentiment_scraper.py', ticker_args)
     run_script('06_scoring_engine.py', ticker_args)
+    
+    if args.ticker:
+        run_script('09_chart_generator.py', ticker_args)
+    else:
+        # Mode Radar: Ambil watchlist secara manual (menghindari error import modul angka)
+        watchlist = []
+        if os.path.exists(os.path.join(BASE_DIR, 'config', 'watchlist.txt')):
+            with open(os.path.join(BASE_DIR, 'config', 'watchlist.txt'), 'r') as f:
+                watchlist = [line.strip() for line in f.readlines() if line.strip()]
+        
+        for t in watchlist[:5]: # Batasi 5 untuk kecepatan radar
+            run_script('09_chart_generator.py', ['--ticker', t])
+
     run_script('07_llm_formatter.py', ticker_args)
         
     print("\n" + "#"*60)

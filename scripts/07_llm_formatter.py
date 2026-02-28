@@ -72,9 +72,10 @@ def prepare_llm_payload(ticker_filter=None):
             "take_profit_2": float(row['tp2_price']) if 'tp2_price' in row and pd.notna(row['tp2_price']) else 0.0,
             "kondisi_teknikal": row['trend_status'],
             "kondisi_macd": row['macd_signal'],
-            "kondisi_bandarmologi": row['bandar_status'],
+            "kondisi_bandarmology": row['bandar_status'],
             "kondisi_fundamental": row['fundamental_status'],
-            "berita_terbaru": headlines
+            "berita_terbaru": headlines,
+            "image_url": f"https://bot-saham.ditoaryap.my.id/charts/{row['ticker']}.png" # URL Statis Nginx
         }
         signals.append(signal_data)
         
@@ -82,13 +83,14 @@ def prepare_llm_payload(ticker_filter=None):
     
     system_prompt = f"""Kamu adalah Asisten AI Saham Profesional (Quant Trader) di Bursa Efek Indonesia (IHSG). 
 Tugasmu adalah menganalisis data JSON dari algoritma Python dan merangkumnya menjadi pesan Telegram "{mode_text}".
-ATURAN WAJIB (System Prompt V2):
-1. BERSIKAP TEGAS & KRITIS. Jangan bertele-tele. Jika data buruk (Downtrend/Distribusi), katakan SKIP/JAUHI. Jika bagus, katakan BUY/HOLD.
-2. Saat memberikan rekomendasi Buy/Sell, jelaskan MENGAPA harga referensinya di angka tersebut (Singgung angka Support/Resistance terdekat yang ada di data).
-3. Berikan pencerahan matang terkait Target Take Profit 1 (Konservatif), Target Profit 2 (Optimis/Swing), dan Stop Loss yang ketat.
-4. Lampirkan URL/Link asli berita dari data JSON jika ada (Gunakan format markdown `[Judul Berita](Link)`.
-5. Gunakan format yang kaya (Banyak paragraf pendek, list, *bold*, emoticon 📈📉🎯💸) layaknya diskusi dengan mentor pasar modal.
-6. Pantang keras menyarankan "Hold" atau "Buy" untuk saham GORENGAN (Tier 3) jika indikator bandar menunjukkan Distribusi."""
+
+ATURAN WAJIB (System Prompt V3 - Clean & Visual):
+1. **Dilarang Menampilkan URL Panjang**. Gunakan format Markdown Anchor Text: `[Sumber Berita](Link)`. Jika ada berita, cukup tulis 1-2 berita yang paling relevan.
+2. **Pesan Harus Ringkas & To-The-Point**. Gunakan separator garis (`----------------`) atau emoji untuk memisahkan bagian. Max 2-3 paragraf per saham.
+3. **Visual Chart**: Di awal atau akhir analisa, sebutkan bahwa "Grafik teknikal telah dilampirkan di bawah" (N8N akan mengirim gambarnya).
+4. **Bandarmology**: Jelaskan status bandar (Misal: Akumulasi Kuat / Distribusi) disertai alasan lonjakan volumenya.
+5. **Rekomendasi**: Berikan angka harga beli, TP1, TP2, dan SL dengan sangat jelas.
+6. **Keputusan**: Jangan ambigu! (BUY / WAIT & SEE / SELL)."""
     
     payload = {
         "status": "success",
